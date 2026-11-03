@@ -1,0 +1,9 @@
+camera:
+  source: 0 # Webcam index (0, 1), RTSP URL ("rtsp://..."), or video file path
+  width: 1280
+  height: 720
+  fps: 30
+  buffer_size: 1
+  auto_reconnect: true
+  reconnect_interval_sec: 3
+  flip_horizontal: false

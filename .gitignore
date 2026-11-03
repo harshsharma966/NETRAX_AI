@@ -1,0 +1,52 @@
+# Environment and Secrets
+.env
+.env.local
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Heavy AI model weights (>100MB blocked by GitHub)
+models/face_recognition/*.onnx
+models/face_detection/*.onnx
+models/person_detection/*.pt
+*.pth
+*.onnx
+
+# Captures and logs
+captures/aligned_faces/*
+!captures/aligned_faces/.gitkeep
+captures/face_crops/*
+!captures/face_crops/.gitkeep
+captures/person_crops/*
+!captures/person_crops/.gitkeep
+captures/uploads/*
+!captures/uploads/.gitkeep
+logs/*.log
+!logs/.gitkeep
+
+# Temporary photos
+harsh*.jpeg
+harsh*.jpg
+captures/*.jpg
+
+# Databases
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# Root weights & personal images
+*.pt
+*.jpeg
+*.jpg
+readme.txt

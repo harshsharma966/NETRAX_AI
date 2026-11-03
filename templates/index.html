@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NETRAX AI — Smart Surveillance & Face Recognition</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#090d16',
+                        panelBg: '#111827',
+                        cardBg: '#1a2234',
+                        accentCyan: '#06b6d4',
+                        accentGreen: '#10b981',
+                        accentRed: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glow-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.35); }
+        .glow-green { box-shadow: 0 0 12px rgba(16, 185, 129, 0.4); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #111827; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-darkBg text-gray-200 min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-panelBg border-b border-gray-800 px-6 py-3.5 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center glow-cyan shadow-lg">
+                <i class="fa-solid fa-shield-halved text-gray-900 text-xl font-bold"></i>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="font-bold text-lg tracking-wider text-white">NETRAX<span class="text-accentCyan">_AI</span></span>
+                    <span class="text-xs bg-cyan-950/80 text-accentCyan border border-cyan-800/60 px-2 py-0.5 rounded-full font-mono">v1.0.0</span>
+                </div>
+                <p class="text-xs text-gray-400">Intelligent Entry Detection & Face Biometrics</p>
+            </div>
+        </div>
+
+        <!-- System Status Indicators -->
+        <div class="flex items-center space-x-4">
+            <div class="hidden sm:flex items-center space-x-2 bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-800 text-xs">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse glow-green"></span>
+                <span class="text-gray-300 font-mono">DB: PostgreSQL [5433:netrax_db]</span>
+            </div>
+
+            <div class="hidden md:flex items-center space-x-2 bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-800 text-xs font-mono text-gray-300" id="clock">
+                <i class="fa-regular fa-clock text-accentCyan"></i>
+                <span id="time-display">--:--:--</span>
+            </div>
+
+            <button onclick="toggleCamera()" id="cam-toggle-btn" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg font-medium text-xs bg-emerald-600/90 hover:bg-emerald-500 text-white transition shadow">
+                <i class="fa-solid fa-video" id="cam-icon"></i>
+                <span id="cam-text">Camera Active</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto space-y-5">
+
+        <!-- Top Metrics Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-panelBg border border-gray-800/80 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Registered Faces</p>
+                    <p class="text-2xl font-bold text-white mt-1" id="stat-users">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-accentCyan">
+                    <i class="fa-solid fa-users text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-panelBg border border-gray-800/80 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Crossings</p>
+                    <p class="text-2xl font-bold text-white mt-1" id="stat-entries">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                    <i class="fa-solid fa-shoe-prints text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-panelBg border border-gray-800/80 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Recognized Persons</p>
+                    <p class="text-2xl font-bold text-emerald-400 mt-1" id="stat-recognized">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-id-card-clip text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-panelBg border border-gray-800/80 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Unknown / Alerts</p>
+                    <p class="text-2xl font-bold text-amber-400 mt-1" id="stat-unknown">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Workspace Split Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            
+            <!-- Left Column: Video Surveillance Stream (7 cols) -->
+            <div class="lg:col-span-7 space-y-4">
+                <div class="bg-panelBg border border-gray-800 rounded-xl overflow-hidden shadow-xl flex flex-col">
+                    <div class="px-4 py-3 bg-gray-900/70 border-b border-gray-800 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-gray-200">Live AI Tripwire Feed</span>
+                        </div>
+                        <div class="flex items-center space-x-3 text-xs text-gray-400 font-mono">
+                            <span class="bg-gray-800 px-2 py-0.5 rounded text-accentCyan">YOLO11n + ByteTrack</span>
+                            <span class="bg-gray-800 px-2 py-0.5 rounded text-emerald-400">iResNet100</span>
+                        </div>
+                    </div>
+
+                    <!-- Video Viewport -->
+                    <div class="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
+                        <img id="video-stream" src="/video_feed" alt="Video Stream" class="w-full h-full object-contain">
+                        
+                        <div id="video-placeholder" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-950 text-gray-400 space-y-2">
+                            <i class="fa-solid fa-video-slash text-4xl text-gray-600"></i>
+                            <p class="text-sm">Camera stream is paused</p>
+                            <button onclick="toggleCamera('start')" class="mt-2 px-3 py-1 text-xs bg-cyan-600 hover:bg-cyan-500 text-white rounded">
+                                Resume Stream
+                            </button>
+                        </div>
+
+                        <!-- Live Feed HUD Overlay -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded border border-white/10 text-xs font-mono text-emerald-400 flex items-center space-x-2 pointer-events-none">
+                            <i class="fa-solid fa-crosshairs"></i>
+                            <span>VIRTUAL TRIPWIRE ACTIVE</span>
+                        </div>
+                    </div>
+
+                    <!-- Stream Control Bar -->
+                    <div class="px-4 py-2.5 bg-gray-900/60 border-t border-gray-800 flex items-center justify-between text-xs text-gray-400">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-camera text-accentCyan"></i>
+                            <span>Source: <strong class="text-gray-300 font-mono">Webcam (Default)</strong></span>
+                        </div>
+                        <span>Tripwire: <span class="text-amber-400 font-mono">Top-to-Bottom</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Operations Console & Tabs (5 cols) -->
+            <div class="lg:col-span-5 bg-panelBg border border-gray-800 rounded-xl overflow-hidden shadow-xl flex flex-col min-h-[540px]">
+                
+                <!-- Tab Headers -->
+                <div class="flex border-b border-gray-800 bg-gray-900/80 text-xs font-medium">
+                    <button onclick="switchTab('logs')" id="tab-btn-logs" class="flex-1 py-3 px-3 text-center border-b-2 border-accentCyan text-white flex items-center justify-center space-x-2 transition">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Activity Logs</span>
+                    </button>
+                    <button onclick="switchTab('register')" id="tab-btn-register" class="flex-1 py-3 px-3 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center justify-center space-x-2 transition">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Enroll Face</span>
+                    </button>
+                    <button onclick="switchTab('users')" id="tab-btn-users" class="flex-1 py-3 px-3 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center justify-center space-x-2 transition">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Directory</span>
+                    </button>
+                </div>
+
+                <!-- Tab 1: Live Activity Logs -->
+                <div id="tab-logs" class="flex-1 p-4 flex flex-col space-y-3">
+                    <div class="flex items-center justify-between text-xs text-gray-400 mb-1">
+                        <span>Latest crossings recorded in PostgreSQL</span>
+                        <button onclick="fetchLogs()" class="hover:text-accentCyan transition"><i class="fa-solid fa-rotate text-xs"></i> Refresh</button>
+                    </div>
+
+                    <div id="logs-container" class="space-y-2.5 overflow-y-auto max-h-[460px] custom-scrollbar flex-1 pr-1">
+                        <div class="text-center py-10 text-gray-500 text-xs">Loading activity logs...</div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Enroll Face (Photo Upload) -->
+                <div id="tab-register" class="hidden flex-1 p-5 space-y-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-white">Enroll New Person</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Upload a photo to extract face embeddings and register in database.</p>
+                    </div>
+
+                    <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4">
+                        <!-- Person Name -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Person Full Name</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-xs">
+                                    <i class="fa-regular fa-user"></i>
+                                </span>
+                                <input type="text" id="reg-name" required placeholder="e.g. Harsh Sharma" class="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-accentCyan transition">
+                            </div>
+                        </div>
+
+                        <!-- Photo Upload Dropzone -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Face Photo</label>
+                            <div id="dropzone" onclick="document.getElementById('reg-photo').click()" class="border-2 border-dashed border-gray-700 hover:border-accentCyan rounded-xl p-4 text-center cursor-pointer bg-gray-900/50 hover:bg-gray-900 transition flex flex-col items-center justify-center space-y-2">
+                                <div id="preview-container" class="hidden w-24 h-24 rounded-lg overflow-hidden border border-accentCyan shadow">
+                                    <img id="photo-preview" src="#" alt="Preview" class="w-full h-full object-cover">
+                                </div>
+                                <div id="upload-prompt" class="flex flex-col items-center space-y-1 text-gray-400">
+                                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-accentCyan mb-1"></i>
+                                    <p class="text-xs font-medium text-gray-200">Click to upload face photo</p>
+                                    <p class="text-[11px] text-gray-500">JPG, JPEG or PNG (Clear front face)</p>
+                                </div>
+                                <input type="file" id="reg-photo" accept="image/*" class="hidden" onchange="previewImage(event)">
+                            </div>
+                        </div>
+
+                        <!-- Feedback Box -->
+                        <div id="reg-feedback" class="hidden text-xs p-3 rounded-lg"></div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" id="reg-submit-btn" class="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-medium text-xs rounded-lg shadow-md transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-fingerprint"></i>
+                            <span>Extract Embeddings & Enroll User</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Tab 3: Registered Personnel Directory -->
+                <div id="tab-users" class="hidden flex-1 p-4 flex flex-col space-y-3">
+                    <div class="flex items-center justify-between text-xs text-gray-400 mb-1">
+                        <span>All enrolled individuals</span>
+                        <button onclick="fetchUsers()" class="hover:text-accentCyan transition"><i class="fa-solid fa-rotate text-xs"></i> Refresh</button>
+                    </div>
+
+                    <div id="users-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto max-h-[460px] custom-scrollbar flex-1 pr-1">
+                        <div class="col-span-2 text-center py-10 text-gray-500 text-xs">Loading directory...</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-panelBg border-t border-gray-800 px-6 py-3 text-center text-xs text-gray-500">
+        NETRAX AI System • Powered by PyTorch, YOLO11, ArcFace & PostgreSQL (ai-agent-db)
+    </footer>
+
+    <!-- App JavaScript Logic -->
+    <script>
+        // Live Clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('time-display').innerText = now.toLocaleTimeString();
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Switch Tabs
+        function switchTab(tabId) {
+            ['logs', 'register', 'users'].forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+                document.getElementById('tab-btn-' + t).classList.remove('border-accentCyan', 'text-white');
+                document.getElementById('tab-btn-' + t).classList.add('border-transparent', 'text-gray-400');
+            });
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            document.getElementById('tab-btn-' + tabId).classList.add('border-accentCyan', 'text-white');
+            document.getElementById('tab-btn-' + tabId).classList.remove('border-transparent', 'text-gray-400');
+
+            if (tabId === 'logs') fetchLogs();
+            if (tabId === 'users') fetchUsers();
+        }
+
+        // Toggle Camera
+        let cameraRunning = true;
+        function toggleCamera(action = null) {
+            fetch('/api/camera/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action || (cameraRunning ? 'stop' : 'start') })
+            })
+            .then(res => res.json())
+            .then(data => {
+                cameraRunning = data.camera_running;
+                const streamImg = document.getElementById('video-stream');
+                const placeholder = document.getElementById('video-placeholder');
+                const btnText = document.getElementById('cam-text');
+                const btn = document.getElementById('cam-toggle-btn');
+
+                if (cameraRunning) {
+                    streamImg.src = "/video_feed?" + new Date().getTime();
+                    streamImg.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                    btnText.innerText = 'Camera Active';
+                    btn.className = 'flex items-center space-x-2 px-3.5 py-1.5 rounded-lg font-medium text-xs bg-emerald-600/90 hover:bg-emerald-500 text-white transition shadow';
+                } else {
+                    streamImg.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                    btnText.innerText = 'Camera Paused';
+                    btn.className = 'flex items-center space-x-2 px-3.5 py-1.5 rounded-lg font-medium text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 transition shadow';
+                }
+            });
+        }
+
+        // Fetch Stats
+        function fetchStats() {
+            fetch('/api/stats')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('stat-users').innerText = data.total_users;
+                        document.getElementById('stat-entries').innerText = data.total_entries;
+                        document.getElementById('stat-recognized').innerText = data.recognized_entries;
+                        document.getElementById('stat-unknown').innerText = data.unknown_entries;
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+
+        // Fetch Activity Logs
+        function fetchLogs() {
+            fetch('/api/logs')
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('logs-container');
+                    if (!data.success || !data.logs.length) {
+                        container.innerHTML = '<div class="text-center py-10 text-gray-500 text-xs">No entry logs recorded yet.</div>';
+                        return;
+                    }
+                    container.innerHTML = data.logs.map(log => {
+                        const isRecognized = log.name !== 'Unknown';
+                        const badgeColor = isRecognized ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-amber-950 text-amber-400 border-amber-800';
+                        const thumb = log.snapshot_path ? `<img src="/image/${log.snapshot_path}" class="w-10 h-10 rounded-lg object-cover border border-gray-700 bg-gray-800" onerror="this.src='https://via.placeholder.com/40/1f2937/ffffff?text=Face'">` : `<div class="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 text-xs font-mono">ID:${log.track_id}</div>`;
+
+                        return `
+                            <div class="bg-gray-900/90 border border-gray-800/80 rounded-lg p-2.5 flex items-center justify-between hover:border-gray-700 transition">
+                                <div class="flex items-center space-x-3">
+                                    ${thumb}
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-xs font-semibold text-gray-200">${log.name}</span>
+                                            <span class="text-[10px] px-1.5 py-0.2 rounded border font-mono ${badgeColor}">${isRecognized ? (log.confidence * 100).toFixed(0) + '%' : 'ALERT'}</span>
+                                        </div>
+                                        <p class="text-[11px] text-gray-400 font-mono mt-0.5">
+                                            <i class="fa-solid fa-arrow-down-long text-accentCyan text-[10px]"></i> ${log.direction} • Track #${log.track_id}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[11px] font-mono text-gray-400">${log.timestamp.split(' ')[1] || log.timestamp}</p>
+                                    <span class="text-[10px] text-emerald-400 font-mono">✓ Logged</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                })
+                .catch(err => console.error(err));
+        }
+
+        // Fetch Registered Users
+        function fetchUsers() {
+            fetch('/api/users')
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('users-container');
+                    if (!data.success || !data.users.length) {
+                        container.innerHTML = '<div class="col-span-2 text-center py-10 text-gray-500 text-xs">No users enrolled yet.</div>';
+                        return;
+                    }
+                    container.innerHTML = data.users.map(u => {
+                        const img = u.image_path ? `<img src="/image/${u.image_path}" class="w-12 h-12 rounded-lg object-cover border border-cyan-800/60" onerror="this.src='https://via.placeholder.com/50/1f2937/ffffff?text=User'">` : `<div class="w-12 h-12 rounded-lg bg-gray-800 flex items-center justify-center text-accentCyan"><i class="fa-solid fa-user"></i></div>`;
+                        return `
+                            <div class="bg-gray-900 border border-gray-800 p-3 rounded-xl flex items-center space-x-3 hover:border-gray-700 transition">
+                                ${img}
+                                <div class="overflow-hidden">
+                                    <p class="text-xs font-semibold text-white truncate">${u.name}</p>
+                                    <p class="text-[11px] text-gray-400 font-mono">@${u.user_id}</p>
+                                    <p class="text-[10px] text-emerald-400 mt-1 font-mono">● Photo Enrolled</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                })
+                .catch(err => console.error(err));
+        }
+
+        // Image Preview Handler
+        function previewImage(event) {
+            const input = event.target;
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('photo-preview').src = e.target.result;
+                    document.getElementById('preview-container').classList.remove('hidden');
+                    document.getElementById('upload-prompt').classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Face Registration Form Submit
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            const photoInput = document.getElementById('reg-photo');
+            const feedback = document.getElementById('reg-feedback');
+            const submitBtn = document.getElementById('reg-submit-btn');
+
+            if (!photoInput.files.length) {
+                feedback.className = 'text-xs p-3 rounded-lg bg-red-950/80 border border-red-800 text-red-300';
+                feedback.innerText = 'Please select a face photo to upload.';
+                feedback.classList.remove('hidden');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('photo', photoInput.files[0]);
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Processing Face Biometrics...</span>';
+
+            fetch('/api/register', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(res => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-fingerprint"></i><span>Extract Embeddings & Enroll User</span>';
+                
+                if (res.success) {
+                    feedback.className = 'text-xs p-3 rounded-lg bg-emerald-950/80 border border-emerald-800 text-emerald-300';
+                    feedback.innerHTML = `<i class="fa-solid fa-check mr-1"></i> ${res.message}`;
+                    feedback.classList.remove('hidden');
+                    document.getElementById('register-form').reset();
+                    document.getElementById('preview-container').classList.add('hidden');
+                    document.getElementById('upload-prompt').classList.remove('hidden');
+                    fetchStats();
+                    fetchUsers();
+                } else {
+                    feedback.className = 'text-xs p-3 rounded-lg bg-red-950/80 border border-red-800 text-red-300';
+                    feedback.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ${res.error}`;
+                    feedback.classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-fingerprint"></i><span>Extract Embeddings & Enroll User</span>';
+                feedback.className = 'text-xs p-3 rounded-lg bg-red-950/80 border border-red-800 text-red-300';
+                feedback.innerText = 'Network error during registration.';
+                feedback.classList.remove('hidden');
+            });
+        }
+
+        // Auto Poll
+        fetchStats();
+        fetchLogs();
+        setInterval(fetchStats, 4000);
+        setInterval(fetchLogs, 3000);
+    </script>
+</body>
+</html>
+

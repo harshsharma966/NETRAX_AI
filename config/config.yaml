@@ -1,0 +1,56 @@
+app:
+  name: "PersonEntryRecognition"
+  version: "1.0.0"
+  log_level: "INFO"
+  save_captures: true
+  captures_dir: "captures"
+
+models:
+  person_detection:
+    weights: "models/person_detection/yolo11n.pt"
+    confidence_threshold: 0.5
+    iou_threshold: 0.45
+    device: "cpu" # 'cuda' or 'cpu'
+    classes: [0]  # Class 0: person in COCO dataset
+
+  face_detection:
+    weights: "models/face_detection/det_10g.onnx"
+    confidence_threshold: 0.5
+    device: "cpu"
+
+  face_recognition:
+    weights: "models/face_recognition/iresnet100.onnx"
+    embedding_dim: 512
+    device: "cpu"
+    similarity_metric: "cosine"
+    similarity_threshold: 0.40
+
+tracking:
+  tracker_type: "bytetrack"
+  track_high_thresh: 0.5
+  track_low_thresh: 0.1
+  new_track_thresh: 0.6
+  track_buffer: 90
+  match_thresh: 0.8
+
+line_crossing:
+  enabled: true
+  # Tripwire coordinates [(x1, y1), (x2, y2)]
+  line_start: [100, 350]
+  line_end: [1180, 350]
+  # Supported: 'top_to_bottom', 'bottom_to_top', 'left_to_right', 'right_to_left'
+  entry_direction: "top_to_bottom"
+  line_thickness: 3
+  color: [0, 255, 255] # BGR Yellow
+
+face_quality:
+  min_face_size: [60, 60]
+  min_blur_score: 50.0 # Laplacian variance
+  max_yaw_angle: 30.0
+  max_pitch_angle: 25.0
+
+database:
+  # All DB config comes from .env — PostgreSQL only
+  embeddings_path: "data/face_embeddings/registered_embeddings.npz"
+  registered_faces_dir: "data/registered_faces"
+  photo_upload_dir: "captures/uploads"
