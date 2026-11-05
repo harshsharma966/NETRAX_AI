@@ -27,4 +27,9 @@ class EmbeddingExtractor:
             emb = self.model(tensor)
             emb_np = emb.squeeze(0).cpu().numpy()
 
+        # L2 normalize — critical for cosine similarity to work correctly
+        norm = np.linalg.norm(emb_np)
+        if norm > 0:
+            emb_np = emb_np / norm
+
         return emb_np

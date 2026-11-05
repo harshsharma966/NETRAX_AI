@@ -33,3 +33,17 @@ class EmbeddingStore:
     def add_user(self, name: str, embedding: np.ndarray):
         self.embeddings[name] = embedding
         self.save()
+
+    def remove_user(self, name: str) -> bool:
+        """Remove user (and any tagged variants like name#glasses) from embeddings store."""
+        removed = False
+        target = name.strip().lower()
+        for k in list(self.embeddings.keys()):
+            k_clean = k.split("#")[0].strip().lower()
+            if k.lower() == target or k_clean == target:
+                del self.embeddings[k]
+                removed = True
+        if removed:
+            self.save()
+            logger.info(f"Removed user '{name}' from {self.storage_path}")
+        return removed

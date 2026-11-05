@@ -19,7 +19,9 @@ models:
     device: "cpu"
 
   face_recognition:
-    weights: "models/face_recognition/iresnet100.onnx"
+    # weights: "models/face_recognition/iresnet100.onnx"  # this is custom model weight 
+    # this are buffalo l 
+    weights: "models/face_recognition/w600k_r50.onnx"
     embedding_dim: 512
     device: "cpu"
     similarity_metric: "cosine"
@@ -30,11 +32,11 @@ tracking:
   track_high_thresh: 0.5
   track_low_thresh: 0.1
   new_track_thresh: 0.6
-  track_buffer: 90
+  track_buffer: 30
   match_thresh: 0.8
 
 line_crossing:
-  enabled: true
+  enabled: false
   # Tripwire coordinates [(x1, y1), (x2, y2)]
   line_start: [100, 350]
   line_end: [1180, 350]

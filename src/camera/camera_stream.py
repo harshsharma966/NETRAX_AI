@@ -10,7 +10,7 @@ logger = setup_logger("camera_stream")
 class CameraStream:
     """Threaded camera capture to reduce latency for live RTSP / Webcam feeds."""
 
-    def __init__(self, source: Union[int, str] = 0, width: int = 1280, height: int = 720, fps: int = 30):
+    def __init__(self, source: Union[int, str] = 0, width: Optional[int] = None, height: Optional[int] = None, fps: int = 30):
         self.source = source
         self.width = width
         self.height = height
@@ -26,13 +26,17 @@ class CameraStream:
     def start(self) -> "CameraStream":
         logger.info(f"Connecting to video source: {self.source}")
         self.cap = cv2.VideoCapture(self.source)
+
         try:
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         except Exception:
             pass
+
         if isinstance(self.source, int):
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+            if self.width is not None:
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+            if self.height is not None:
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
             self.cap.set(cv2.CAP_PROP_FPS, self.fps)
 
         if not self.cap.isOpened():

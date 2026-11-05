@@ -26,7 +26,6 @@ class PersonDetector:
     def _init_model(self):
         try:
             from ultralytics import YOLO
-            # If weight file doesn't exist yet, fall back to lightweight default
             if not self.weights_path.exists() or self.weights_path.stat().st_size < 1000:
                 logger.warning(f"Weights file {self.weights_path} not ready. Loading YOLO('yolo11n.pt') directly.")
                 self.model = YOLO("yolo11n.pt")
@@ -39,14 +38,7 @@ class PersonDetector:
             self.model = None
 
     def detect(self, frame: np.ndarray) -> List[Dict[str, Any]]:
-        """Detect persons in a given frame.
-        
-        Returns:
-            List of dicts containing:
-            - 'bbox': [x1, y1, x2, y2]
-            - 'confidence': float
-            - 'class_id': int (0 for person)
-        """
+        """Detect persons in a given frame with fast imgsz=416."""
         if self.model is None or frame is None:
             return []
 
@@ -54,7 +46,8 @@ class PersonDetector:
             frame,
             conf=self.conf_threshold,
             iou=self.iou_threshold,
-            classes=[0], # Class 0 is person in COCO
+            classes=[0],
+            imgsz=416,
             verbose=False,
             device=self.device
         )

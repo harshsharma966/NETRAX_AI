@@ -14,9 +14,9 @@ class FaceDetector:
     def __init__(
         self,
         weights_path: str = "models/face_detection/det_10g.onnx",
-        conf_threshold: float = 0.5,
+        conf_threshold: float = 0.3,
         nms_threshold: float = 0.4,
-        input_size: tuple = (640, 640)
+        input_size: tuple = (480, 480)
     ):
         self.weights_path = Path(weights_path)
         self.conf_threshold = conf_threshold
@@ -70,24 +70,42 @@ class FaceDetector:
                 outs = self.net.forward(self.out_names)
 
                 # SCRFD multi-stride output decoding (strides 8, 16, 32)
+                # Each stride produces 3 outputs: [scores, bboxes, landmarks]
+                # Total 9 output layers: [0,1,2] for stride 8, [3,4,5] for stride 16, [6,7,8] for stride 32
                 strides = [8, 16, 32]
-                score_indices = [0, 1, 2]
-                bbox_indices = [3, 4, 5]
+                score_indices = [0, 3, 6]
+                bbox_indices = [1, 4, 7]
+                kps_indices = [2, 5, 8]
 
                 boxes = []
                 scores = []
-                num_anchors = 2
+                all_kps = []
 
-                for stride, s_idx, b_idx in zip(strides, score_indices, bbox_indices):
-                    score_out = outs[s_idx]
-                    bbox_out = outs[b_idx]
+                for stride, s_idx, b_idx, k_idx in zip(strides, score_indices, bbox_indices, kps_indices):
+                    score_out = outs[s_idx].reshape(-1, 1)
+                    bbox_out = outs[b_idx].reshape(-1, 4)
+                    kps_out = outs[k_idx].reshape(-1, 10)
+
+                    # Scores are already post-sigmoid (0 to 1 range)
 
                     w_feat = in_w // stride
                     h_feat = in_h // stride
 
                     y, x = np.mgrid[0:h_feat, 0:w_feat]
                     anchor_centers = np.stack((x, y), axis=-1).reshape(-1, 2) * stride
+
+                    # Determine num_anchors from data shape
+                    total_anchors = score_out.shape[0]
+                    grid_cells = w_feat * h_feat
+                    num_anchors = max(1, total_anchors // grid_cells) if grid_cells > 0 else 1
                     anchor_centers = np.repeat(anchor_centers, num_anchors, axis=0)
+
+                    # Safety check: ensure shapes match
+                    min_len = min(score_out.shape[0], anchor_centers.shape[0], bbox_out.shape[0], kps_out.shape[0])
+                    score_out = score_out[:min_len]
+                    bbox_out = bbox_out[:min_len]
+                    kps_out = kps_out[:min_len]
+                    anchor_centers = anchor_centers[:min_len]
 
                     thresh_mask = (score_out[:, 0] > self.conf_threshold)
                     if not np.any(thresh_mask):
@@ -95,6 +113,7 @@ class FaceDetector:
 
                     valid_scores = score_out[thresh_mask, 0]
                     valid_deltas = bbox_out[thresh_mask] * stride
+                    valid_kps = kps_out[thresh_mask] * stride
                     valid_anchors = anchor_centers[thresh_mask]
 
                     x1 = (valid_anchors[:, 0] - valid_deltas[:, 0]) * scale_x
@@ -108,11 +127,18 @@ class FaceDetector:
                     x2 = np.clip(x2, 0, orig_w)
                     y2 = np.clip(y2, 0, orig_h)
 
+                    # 5 Landmarks points [(x, y), ...]
+                    pts = np.zeros((valid_kps.shape[0], 5, 2), dtype=np.float32)
+                    for p in range(5):
+                        pts[:, p, 0] = np.clip((valid_anchors[:, 0] + valid_kps[:, p*2]) * scale_x, 0, orig_w)
+                        pts[:, p, 1] = np.clip((valid_anchors[:, 1] + valid_kps[:, p*2 + 1]) * scale_y, 0, orig_h)
+
                     for i in range(len(valid_scores)):
                         w_box = max(0, x2[i] - x1[i])
                         h_box = max(0, y2[i] - y1[i])
                         boxes.append([int(x1[i]), int(y1[i]), int(w_box), int(h_box)])
                         scores.append(float(valid_scores[i]))
+                        all_kps.append(pts[i])
 
                 if not boxes:
                     return []
@@ -125,7 +151,8 @@ class FaceDetector:
                         b = boxes[i]
                         results.append({
                             "bbox": [b[0], b[1], b[0] + b[2], b[1] + b[3]],
-                            "confidence": scores[i]
+                            "confidence": scores[i],
+                            "landmarks": all_kps[i]
                         })
                 return results
 

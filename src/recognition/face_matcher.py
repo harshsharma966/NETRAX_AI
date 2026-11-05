@@ -5,7 +5,7 @@ from typing import Dict, Tuple, Optional
 class FaceMatcher:
     """Matches query face embeddings against stored gallery embeddings using Cosine Similarity."""
 
-    def __init__(self, threshold: float = 0.40):
+    def __init__(self, threshold: float = 0.35):
         self.threshold = threshold
 
     @staticmethod
@@ -32,7 +32,8 @@ class FaceMatcher:
             sim = self.cosine_similarity(query_emb, emb)
             if sim > best_score:
                 best_score = sim
-                best_name = name
+                clean_name = name.split("#")[0]
+                best_name = clean_name
 
         if best_score >= self.threshold:
             return best_name, best_score

@@ -17,36 +17,64 @@ class FaceCaptureManager:
         self.detector = FaceDetector()
         self.quality_checker = FaceQualityChecker()
         self.aligner = FaceAligner()
-        # track_id -> {'best_face': img, 'best_score': float, 'best_crop': img}
+        # track_id -> {'best_face': img, 'current_face': img, 'best_score': float, 'last_seen_frame': int}
         self.track_faces: Dict[int, Dict[str, Any]] = {}
 
-    def process_person_crop(self, track_id: int, person_crop: np.ndarray) -> Optional[np.ndarray]:
-        """Search for face in person crop, assess quality, and update best snapshot."""
+    def process_person_crop(self, track_id: int, person_crop: np.ndarray, frame_num: int = 0) -> Optional[np.ndarray]:
+        """Search for face in person crop, assess quality, and update snapshot."""
         faces = self.detector.detect_faces(person_crop)
         if not faces:
             return None
 
         # Take largest detected face
         face_info = max(faces, key=lambda f: (f["bbox"][2] - f["bbox"][0]) * (f["bbox"][3] - f["bbox"][1]))
-        face_crop = safe_crop(person_crop, face_info["bbox"])
-        if face_crop is None:
-            return None
+        landmarks = face_info.get("landmarks")
+
+        # 5-Point Affine alignment: rotates tilted head upright directly into 112x112
+        if landmarks is not None:
+            aligned = self.aligner.align(person_crop, landmarks=landmarks)
+            face_crop = safe_crop(person_crop, face_info["bbox"])
+            if face_crop is None:
+                face_crop = person_crop
+        else:
+            face_crop = safe_crop(person_crop, face_info["bbox"])
+            if face_crop is None:
+                return None
+            aligned = self.aligner.align(face_crop)
 
         q = self.quality_checker.check_quality(face_crop)
         score = q.get("blur_score", 0.0)
 
-        if track_id not in self.track_faces or score > self.track_faces[track_id]["best_score"]:
-            aligned = self.aligner.align(face_crop)
+        if track_id not in self.track_faces:
             self.track_faces[track_id] = {
                 "best_face": aligned,
-                "best_crop": face_crop,
-                "best_score": score
+                "current_face": aligned,
+                "best_score": score,
+                "last_seen_frame": frame_num
             }
-            return aligned
+        else:
+            self.track_faces[track_id]["current_face"] = aligned
+            self.track_faces[track_id]["last_seen_frame"] = frame_num
+            # If current face quality is better or old face is older than 30 frames, update best_face
+            if score > self.track_faces[track_id]["best_score"] or (frame_num - self.track_faces[track_id]["last_seen_frame"] > 30):
+                self.track_faces[track_id]["best_face"] = aligned
+                self.track_faces[track_id]["best_score"] = score
 
-        return self.track_faces[track_id]["best_face"]
+        return aligned
 
     def get_best_face(self, track_id: int) -> Optional[np.ndarray]:
         if track_id in self.track_faces:
-            return self.track_faces[track_id]["best_face"]
+            current = self.track_faces[track_id].get("current_face")
+            if current is not None:
+                return current
+            return self.track_faces[track_id].get("best_face")
         return None
+
+    def clear_inactive_tracks(self, active_track_ids: set, current_frame: int, max_idle: int = 45):
+        """Remove cached faces for tracks that have left the screen."""
+        stale_ids = [
+            tid for tid, data in self.track_faces.items()
+            if (tid not in active_track_ids and current_frame - data.get("last_seen_frame", 0) > max_idle)
+        ]
+        for tid in stale_ids:
+            self.track_faces.pop(tid, None)

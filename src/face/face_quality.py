@@ -30,3 +30,17 @@ class FaceQualityChecker:
             "brightness": float(brightness),
             "resolution": (w, h)
         }
+
+
+
+
+# 5. Blur Detection – Most Important
+# blur_score = cv2.Laplacian(    gray,    cv2.CV_64F).var()
+
+
+
+# Ye code Variance of Laplacian technique use karta hai.
+
+# Iska purpose image ke edges aur sharpness ko measure karna hai.
+# - Sharp image: Strong edges → Generally higher variance.
+# - Blurry image: Smooth edges → Generally lower variance.

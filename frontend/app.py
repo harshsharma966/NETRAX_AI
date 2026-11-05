@@ -163,9 +163,13 @@ def create_app(base_dir=None):
             else:
                 face_crop = img
 
-            ext = EmbeddingExtractor()
+            if _pipeline is not None and hasattr(_pipeline, "extractor") and hasattr(_pipeline, "emb_store"):
+                ext = _pipeline.extractor
+                store = _pipeline.emb_store
+            else:
+                ext = EmbeddingExtractor()
+                store = EmbeddingStore()
             emb = ext.extract(face_crop)
-            store = EmbeddingStore()
             store.add_user(name, emb)
 
             if _pipeline is not None and hasattr(_pipeline, "emb_store"):
